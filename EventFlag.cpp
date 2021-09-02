@@ -22,6 +22,7 @@
 #include <sys/syscall.h>
 #include <unistd.h>
 
+#include <limits>
 #include <new>
 
 #include <fmq/EventFlag.h>
@@ -30,26 +31,6 @@
 
 namespace android {
 namespace hardware {
-
-status_t EventFlag::createEventFlag(int fd, off_t offset, EventFlag** flag) {
-    if (flag == nullptr) {
-        return BAD_VALUE;
-    }
-
-    status_t status = NO_MEMORY;
-    *flag = nullptr;
-
-    EventFlag* evFlag = new (std::nothrow) EventFlag(fd, offset, &status);
-    if (evFlag != nullptr) {
-        if (status == NO_ERROR) {
-            *flag = evFlag;
-        } else {
-            delete evFlag;
-        }
-    }
-
-    return status;
-}
 
 status_t EventFlag::createEventFlag(std::atomic<uint32_t>* fwAddr,
                                     EventFlag** flag) {
@@ -70,23 +51,6 @@ status_t EventFlag::createEventFlag(std::atomic<uint32_t>* fwAddr,
     }
 
     return status;
-}
-
-/*
- * mmap memory for the futex word
- */
-EventFlag::EventFlag(int fd, off_t offset, status_t* status) {
-    mEfWordPtr = static_cast<std::atomic<uint32_t>*>(mmap(NULL,
-                                                          sizeof(std::atomic<uint32_t>),
-                                                          PROT_READ | PROT_WRITE,
-                                                          MAP_SHARED, fd, offset));
-    mEfWordNeedsUnmapping = true;
-    if (mEfWordPtr != MAP_FAILED) {
-        *status = NO_ERROR;
-    } else {
-        *status = -errno;
-        ALOGE("Attempt to mmap event flag word failed: %s\n", strerror(errno));
-    }
 }
 
 /*
@@ -120,9 +84,9 @@ status_t EventFlag::wake(uint32_t bitmask) {
      * No need to call FUTEX_WAKE_BITSET if there were deferred wakes
      * already available for all set bits from bitmask.
      */
+    constexpr size_t kIntMax = std::numeric_limits<int>::max();
     if ((~old & bitmask) != 0) {
-        int ret = syscall(__NR_futex, mEfWordPtr, FUTEX_WAKE_BITSET,
-                          INT_MAX, NULL, NULL, bitmask);
+        int ret = syscall(__NR_futex, mEfWordPtr, FUTEX_WAKE_BITSET, kIntMax, NULL, NULL, bitmask);
         if (ret == -1) {
             status = -errno;
             ALOGE("Error in event flag wake attempt: %s\n", strerror(errno));

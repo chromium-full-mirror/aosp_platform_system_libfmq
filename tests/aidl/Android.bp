@@ -1,3 +1,7 @@
+package {
+    default_applicable_licenses: ["Android-Apache-2.0"],
+}
+
 aidl_interface {
     name: "android.fmq.test",
     host_supported: true,
@@ -7,6 +11,7 @@ aidl_interface {
         "android/fmq/test/*.aidl",
     ],
     imports: [
+        "android.hardware.common",
         "android.hardware.common.fmq",
     ],
     gen_trace: true,
