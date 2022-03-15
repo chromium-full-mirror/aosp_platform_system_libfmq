@@ -54,6 +54,7 @@ static_assert(__alignof(GrantorDescriptor) == 8, "wrong alignment");
 namespace details {
 
 void logError(const std::string& message);
+void errorWriteLog(int tag, const char* message);
 void check(bool exp, const char* message);
 
 typedef uint64_t RingBufferPosition;
@@ -73,7 +74,7 @@ static constexpr int32_t kMinGrantorCountForEvFlagSupport = EVFLAGWORDPOS + 1;
 
 static inline size_t alignToWordBoundary(size_t length) {
     constexpr size_t kAlignmentSize = 64;
-    static_assert(kAlignmentSize % __WORDSIZE == 0, "Incompatible word size");
+    static_assert(kAlignmentSize % sizeof(long) == 0, "Incompatible word size");
 
     /*
      * Check if alignment to word boundary would cause an overflow.
